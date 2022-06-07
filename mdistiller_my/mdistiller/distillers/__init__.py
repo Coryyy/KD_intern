@@ -12,7 +12,10 @@ from .SP import SP
 from .VID import VID
 from .ReviewKD import ReviewKD
 from .DKD import DKD
-from .TEST import TEST
+from .TEST0 import TEST0
+from .TEST1 import TEST1
+from .TEST2 import TEST2
+from .TEST3 import TEST3
 
 distiller_dict = {
     "NONE": Vanilla,
@@ -29,5 +32,8 @@ distiller_dict = {
     "VID": VID,
     "REVIEWKD": ReviewKD,
     "DKD": DKD,
-    "TEST": TEST
+    "TEST0": TEST0,
+    "TEST1": TEST1,
+    "TEST2": TEST2,
+    "TEST3": TEST3
 }
