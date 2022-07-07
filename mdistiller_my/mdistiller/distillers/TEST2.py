@@ -37,13 +37,13 @@ def tat_alignment(f_s, f_t, f_s_o):
 
 def gt_and_non_loss(aligned_feature, lst_gt, lst_non_gt):
     bsz = aligned_feature.size(0)
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    nup_gt = np.array(lst_gt).astype(float)
-    nup_non_gt = np.array(lst_non_gt).astype(float)
-    lst_gt = torch.from_numpy(nup_gt).to(device).reshape(bsz, 64, 1)
-    lst_non_gt = torch.from_numpy(nup_non_gt).to(device).reshape(bsz, 64, 1)
-    gt = aligned_feature * lst_gt
-    non_gt = aligned_feature * lst_non_gt
+    #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    #nup_gt = np.array(lst_gt).astype(float)
+    #nup_non_gt = np.array(lst_non_gt).astype(float)
+    #lst_gt = torch.from_numpy(nup_gt).to(device).reshape(bsz, 64, 1)
+    #lst_non_gt = torch.from_numpy(nup_non_gt).to(device).reshape(bsz, 64, 1)
+    gt = aligned_feature * lst_gt.reshape(bsz, 64, 1)
+    non_gt = aligned_feature * lst_non_gt.reshape(bsz, 64, 1)
     return gt, non_gt
     '''
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -94,13 +94,16 @@ class TEST2(Distiller):
         f_s = feats_student["feats"][3]
         lst = split_featmap(f_t)                            #len 64 item[64,256,1,1]
         bsz = f_t.size(0)
-        lst_comp_gt = [[] for i in range(bsz)]      
-        lst_comp_non_gt = [[] for i in range(bsz)]                      
+        lst_comp_gt = None    
+        lst_comp_non_gt = None                  
         for i in range(len(lst)):                           #loop = 64
             spc = lst[i].reshape(lst[i].size(0), -1)        #64*256
             out = fc_teacher(spc)                           #64*100
             res = self.sftmx(out)                           #64*100
             idx = torch.argmax(res, dim=1)                  #64
+            lst_comp_gt = idx.eq_(target).reshape(1, bsz) if lst_comp_gt==None else torch.cat([lst_comp_gt, idx.eq_(target).reshape(1, bsz)], dim=0)
+            lst_comp_non_gt = idx.ne_(target).reshape(1, bsz) if lst_comp_non_gt==None else torch.cat([lst_comp_non_gt, idx.ne_(target).reshape(1, bsz)], dim=0)
+            '''
             for j in range(bsz):
                 if idx[j] == target[j]:           
                     lst_comp_gt[j].append(1)                   #[[which spc works(one-hot)]*bsz]
@@ -108,7 +111,7 @@ class TEST2(Distiller):
                 else:
                     lst_comp_gt[j].append(0)
                     lst_comp_non_gt[j].append(1)
-
+            '''
         nf_s, nf_t = tat_alignment(f_s, f_t, f_s)
         gt_s, non_gt_s = gt_and_non_loss(nf_s, lst_comp_gt, lst_comp_non_gt)
         gt_t, non_gt_t = gt_and_non_loss(nf_t, lst_comp_gt, lst_comp_non_gt)
@@ -131,6 +134,7 @@ class TEST2(Distiller):
         #non_gt_teacher = F.softmax(res_non_t, dim=1)
         #non_gt_loss = F.kl_div(log_non_gt_student, non_gt_teacher, reduction="none").sum(1).mean()
 
+
         # element+KL
         log_gt_student = F.log_softmax(gt_s, dim=1)
         gt_teacher = F.softmax(gt_t, dim=1)
@@ -139,6 +143,12 @@ class TEST2(Distiller):
         non_gt_teacher = F.softmax(non_gt_t, dim=1)
         non_gt_loss = F.kl_div(log_non_gt_student, non_gt_teacher, reduction="none").sum(1).mean()       
 
+
+        # element+L1
+        #gt_loss = self.criterion(gt_s, gt_t)
+        #non_gt_loss = self.criterion(non_gt_s, non_gt_t)
+
+        
         # losses
         loss_ce = self.ce_loss_weight * F.cross_entropy(logits_student, target)
         loss_kd = self.gt_loss_weight * gt_loss + self.non_gt_loss_weight * non_gt_loss
