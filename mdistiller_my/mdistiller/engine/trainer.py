@@ -93,7 +93,8 @@ class BaseTrainer(object):
         train_meters = {
             "training_time": AverageMeter(),
             "data_time": AverageMeter(),
-            "losses": AverageMeter(),
+            "loss_ce": AverageMeter(),
+            "loss_kd": AverageMeter(),
             "top1": AverageMeter(),
             "top5": AverageMeter(),
         }
@@ -115,7 +116,8 @@ class BaseTrainer(object):
         log_dict = OrderedDict(
             {
                 "train_acc": train_meters["top1"].avg,
-                "train_loss": train_meters["losses"].avg,
+                "train_loss_ce": train_meters["loss_ce"].avg,
+                "train_loss_kd": train_meters["loss_kd"].avg,
                 "test_acc": test_acc,
                 "test_acc_top5": test_acc_top5,
                 "test_loss": test_loss,
@@ -168,17 +170,21 @@ class BaseTrainer(object):
         self.optimizer.step()
         train_meters["training_time"].update(time.time() - train_start_time)
         # collect info
+        loss_ce = losses_dict["loss_ce"].mean()
+        loss_kd = losses_dict["loss_kd"].mean()
         batch_size = image.size(0)
         acc1, acc5 = accuracy(preds, target, topk=(1, 5))
-        train_meters["losses"].update(loss.cpu().detach().numpy().mean(), batch_size)
+        train_meters["loss_ce"].update(loss_ce.cpu().detach().numpy().mean(), batch_size)
+        train_meters["loss_kd"].update(loss_kd.cpu().detach().numpy().mean(), batch_size)
         train_meters["top1"].update(acc1[0], batch_size)
         train_meters["top5"].update(acc5[0], batch_size)
         # print info
-        msg = "Epoch:{}| Time(data):{:.3f}| Time(train):{:.3f}| Loss:{:.4f}| Top-1:{:.3f}| Top-5:{:.3f}".format(
+        msg = "Epoch:{}| Time(data):{:.3f}| Time(train):{:.3f}| Loss_ce:{:.4f}| Loss_kd:{:.4f}| Top-1:{:.3f}| Top-5:{:.3f}".format(
             epoch,
             train_meters["data_time"].avg,
             train_meters["training_time"].avg,
-            train_meters["losses"].avg,
+            train_meters["loss_ce"].avg,
+            train_meters["loss_kd"].avg,
             train_meters["top1"].avg,
             train_meters["top5"].avg,
         )
